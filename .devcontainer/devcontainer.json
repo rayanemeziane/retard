@@ -1,0 +1,7 @@
+{
+  "name": "retards",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "npm install && npm run db:init:local",
+  "forwardPorts": [8787],
+  "portsAttributes": { "8787": { "label": "Site (wrangler dev)", "onAutoForward": "openBrowser" } }
+}

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retard : ai-je droit a une indemnite ?</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 0 auto; padding: 16px; line-height: 1.45; }
+  fieldset { border: 1px solid #ccc; border-radius: 8px; margin: 12px 0; }
+  label { display: block; margin: 8px 0 4px; }
+  input, select, button, textarea { font: inherit; padding: 6px 8px; width: 100%; box-sizing: border-box; }
+  button { width: auto; cursor: pointer; margin-top: 10px; }
+  .row { display: flex; gap: 8px; } .row > * { flex: 1; }
+  .tabs button { margin-right: 4px; } .tabs button.on { font-weight: bold; }
+  .list button { display: block; width: 100%; text-align: left; margin: 4px 0; }
+  .verdict { font-size: 1.4em; font-weight: bold; margin: 8px 0; }
+  .yes { color: #0a7a2f; } .no { color: #b00020; } .maybe, .question, .unknown { color: #a15c00; }
+  .muted { color: #666; font-size: .9em; } .hidden { display: none; }
+  textarea { height: 280px; font-family: ui-monospace, monospace; font-size: .85em; }
+  .demo { background: #fff3cd; padding: 6px 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>Retard ou annulation : ai-je droit a une indemnite ?</h1>
+<p id="demo" class="demo hidden">Mode demonstration : les resultats sont fictifs.</p>
+
+<div class="tabs" id="tabs">
+  <button data-mode="flight" class="on">Avion</button>
+  <button data-mode="sncf">SNCF</button>
+  <button data-mode="trenitalia">Trenitalia</button>
+  <button data-mode="eurostar">Eurostar</button>
+</div>
+
+<fieldset>
+  <legend>Je connais mon numero</legend>
+  <div class="row">
+    <div><label for="number" id="numberLabel">Numero de vol</label><input id="number" placeholder="AF1234"></div>
+    <div><label for="date1">Date de depart</label><input id="date1" type="date"></div>
+  </div>
+  <div id="destWrap" class="hidden"><label for="dest">Gare ou vous descendiez (facultatif)</label><input id="dest" placeholder="ex. Marseille"></div>
+  <button id="checkBtn">Verifier</button>
+</fieldset>
+
+<fieldset id="routeBox">
+  <legend>Je ne connais pas mon numero</legend>
+  <div class="row">
+    <div><label for="from">Depart</label><input id="from" list="fromList" placeholder="Ville"><datalist id="fromList"></datalist></div>
+    <div><label for="to">Arrivee</label><input id="to" list="toList" placeholder="Ville"><datalist id="toList"></datalist></div>
+  </div>
+  <label for="date2">Date de depart</label><input id="date2" type="date">
+  <button id="routeBtn">Trouver mon trajet</button>
+  <div id="routeList" class="list"></div>
+</fieldset>
+
+<section id="result" class="hidden">
+  <div id="verdict" class="verdict"></div>
+  <p id="reason"></p>
+  <p id="caveat" class="muted"></p>
+  <div id="ask" class="hidden"></div>
+  <div id="priceWrap" class="hidden">
+    <label for="price">Prix de votre billet (€) pour calculer le montant</label>
+    <input id="price" type="number" min="0" step="0.01"><button id="priceBtn">Calculer</button>
+  </div>
+  <p id="details" class="muted"></p>
+  <div id="letterWrap" class="hidden">
+    <h2>Votre reclamation</h2>
+    <p id="letterTo"></p>
+    <textarea id="letter"></textarea>
+    <button id="copyBtn">Copier le texte</button>
+  </div>
+</section>
+
+<script>
+const $ = id => document.getElementById(id);
+let mode = 'flight', last = null;
+const placeIds = { from: {}, to: {} };
+const today = new Date().toISOString().slice(0, 10);
+$('date1').value = $('date2').value = today;
+
+const LABELS = { flight: ['Numero de vol', 'AF1234'], sncf: ['Numero de train', '6109'], trenitalia: ['Numero de train', '9541'], eurostar: ['Numero de train', '9116'] };
+
+$('tabs').onclick = e => {
+  if (!e.target.dataset.mode) return;
+  mode = e.target.dataset.mode;
+  [...$('tabs').children].forEach(b => b.classList.toggle('on', b === e.target));
+  $('numberLabel').textContent = LABELS[mode][0];
+  $('number').placeholder = LABELS[mode][1];
+  $('destWrap').classList.toggle('hidden', mode === 'flight');
+  $('routeBox').classList.toggle('hidden', mode === 'eurostar');
+  $('routeList').innerHTML = ''; $('result').classList.add('hidden');
+};
+
+async function api(path, params) {
+  const res = await fetch(path + '?' + new URLSearchParams(params));
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+// Autocompletion depart / arrivee
+for (const side of ['from', 'to']) {
+  let timer;
+  $(side).oninput = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const q = $(side).value;
+      if (q.length < 2 || placeIds[side][q]) return;
+      const list = await api('/api/places', { mode, q }).catch(() => []);
+      placeIds[side] = {};
+      $(side + 'List').innerHTML = list.map(p => {
+        const label = mode === 'flight' ? `${p.name} (${p.iata})` : p.name;
+        placeIds[side][label] = mode === 'flight' ? p.iata : p.id;
+        return `<option value="${label}">`;
+      }).join('');
+    }, 250);
+  };
+}
+
+$('routeBtn').onclick = async () => {
+  const from = placeIds.from[$('from').value], to = placeIds.to[$('to').value];
+  if (!from || !to) return alert('Choisissez le depart et l\'arrivee dans la liste proposee.');
+  $('routeList').textContent = 'Recherche...';
+  try {
+    const list = await api('/api/route', { mode, from, to, date: $('date2').value });
+    if (!list.length) { $('routeList').textContent = 'Aucun trajet direct trouve ce jour-la.'; return; }
+    $('routeList').innerHTML = '<p>Lequel etait le votre ?</p>' + list.map((t, i) =>
+      `<button data-i="${i}">${(t.depLocal || '').slice(11, 16)} - ${t.number}${t.product ? ' (' + t.product + ')' : ''}${t.airline ? ' - ' + t.airline : ''}</button>`).join('');
+    $('routeList').onclick = e => {
+      const t = list[e.target.dataset.i]; if (!t) return;
+      $('number').value = t.number; $('date1').value = $('date2').value;
+      $('dest').value = $('to').value;
+      run({ product: t.product || '' });
+    };
+  } catch (e) { $('routeList').textContent = e.message; }
+};
+
+$('checkBtn').onclick = () => run({});
+$('priceBtn').onclick = () => run({ ...last, price: $('price').value });
+
+async function run(extra) {
+  const params = { mode, number: $('number').value.trim().toUpperCase(), date: $('date1').value, dest: $('dest').value, ...extra };
+  if (!params.number) return alert('Saisissez un numero.');
+  last = extra;
+  $('result').classList.remove('hidden');
+  $('verdict').textContent = 'Verification...'; $('verdict').className = 'verdict';
+  ['reason', 'caveat', 'details'].forEach(id => $(id).textContent = '');
+  ['ask', 'priceWrap', 'letterWrap'].forEach(id => $(id).classList.add('hidden'));
+  try {
+    const r = await api('/api/check', params);
+    if (!r.found) { $('verdict').textContent = 'Verification impossible'; $('reason').textContent = r.message; return; }
+    show(r, params);
+  } catch (e) { $('verdict').textContent = 'Erreur'; $('reason').textContent = e.message; }
+}
+
+function show(r, params) {
+  const ev = r.evaluation, t = r.trip;
+  $('demo').classList.toggle('hidden', t.source !== 'demo' && !(t.airline || '').includes('demo'));
+  const TXT = { yes: 'Oui, vous avez droit a une indemnite', no: 'Non, pas d\'indemnite', maybe: 'Probablement oui', question: 'Une derniere question', unknown: 'Verification impossible' };
+  $('verdict').textContent = TXT[ev.verdict] + (ev.amount ? ` : ${ev.amount} €` : ev.pct ? ` : ${ev.pct} % du billet` : '');
+  $('verdict').className = 'verdict ' + ev.verdict;
+  $('reason').textContent = ev.reason;
+  $('caveat').textContent = ev.caveat || '';
+
+  if (mode === 'flight') {
+    $('details').textContent = `${t.number} ${t.dep.iata} -> ${t.arr.iata} | prevu ${t.arr.scheduledLocal || '?'} | arrive ${t.arr.actualLocal || '?'} | ${ev.distanceKm ?? '?'} km`;
+  } else {
+    $('details').textContent = `Train ${t.number}${t.station ? ' | gare retenue : ' + t.station : ''} | source : ${t.source}` +
+      (t.stops?.length > 1 ? ' | ' + t.stops.map(s => `${s.station} +${s.delayMin ?? '?'} min`).join(', ') : '');
+  }
+
+  if (ev.ask === 'noticeOver14Days') {
+    $('ask').classList.remove('hidden');
+    $('ask').innerHTML = '<button id="n14y">Oui, plus de 14 jours avant</button> <button id="n14n">Non</button>';
+    $('n14y').onclick = () => run({ ...last, notice14: 'yes' });
+    $('n14n').onclick = () => run({ ...last, notice14: 'no' });
+  }
+  if (ev.needsPrice) $('priceWrap').classList.remove('hidden');
+  if (r.letter) {
+    $('letterWrap').classList.remove('hidden');
+    $('letterTo').innerHTML = 'A envoyer a : ' + r.letter.to + (r.letter.link ? ` - <a href="${r.letter.link}" target="_blank" rel="noopener">formulaire de la compagnie</a>` : '');
+    $('letter').value = r.letter.body;
+  }
+}
+
+$('copyBtn').onclick = () => navigator.clipboard.writeText($('letter').value);
+</script>
+</body>
+</html>
