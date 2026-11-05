@@ -1,0 +1,26 @@
+name = "retards"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+[assets]
+directory = "./public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "retards"
+database_id = "A_REMPLACER_APRES_wrangler_d1_create"
+
+# Archive des retards train toutes les 10 minutes
+[triggers]
+crons = ["*/10 * * * *"]
+
+[vars]
+# "1" = donnees factices (pas besoin de cles). Passer a "0" une fois les cles ajoutees.
+MOCK = "1"
+# Duree de conservation de l'archive train, en jours
+ARCHIVE_DAYS = "60"
+
+# Secrets a ajouter (jamais dans ce fichier) :
+#   npx wrangler secret put RAPIDAPI_KEY   (AeroDataBox)
+#   npx wrangler secret put SNCF_KEY       (API SNCF / Navitia)
+#   npx wrangler secret put NS_KEY         (API NS Pays-Bas)
