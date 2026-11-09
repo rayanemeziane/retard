@@ -37,6 +37,13 @@
     <div><label for="number" id="numberLabel">Numero de vol</label><input id="number" placeholder="AF1234"></div>
     <div><label for="date1">Date de depart</label><input id="date1" type="date"></div>
   </div>
+  <div id="timesWrap">
+    <p class="muted">Facultatif : si vous connaissez vos heures reelles, nous calculons le retard nous-memes.</p>
+    <div class="row">
+      <div><label for="depTime">Heure reelle de decollage</label><input id="depTime" type="time"></div>
+      <div><label for="arrTime">Heure reelle d'arrivee</label><input id="arrTime" type="time"></div>
+    </div>
+  </div>
   <div id="destWrap" class="hidden"><label for="dest">Gare ou vous descendiez (facultatif)</label><input id="dest" placeholder="ex. Marseille"></div>
   <button id="checkBtn">Verifier</button>
 </fieldset>
@@ -86,6 +93,7 @@ $('tabs').onclick = e => {
   $('numberLabel').textContent = LABELS[mode][0];
   $('number').placeholder = LABELS[mode][1];
   $('destWrap').classList.toggle('hidden', mode === 'flight');
+  $('timesWrap').classList.toggle('hidden', mode !== 'flight');
   $('routeBox').classList.toggle('hidden', mode === 'eurostar' || mode === 'sncf');
   $('routeList').innerHTML = ''; $('result').classList.add('hidden');
 };
@@ -139,6 +147,7 @@ $('priceBtn').onclick = () => run({ ...last, price: $('price').value });
 
 async function run(extra) {
   const params = { mode, number: $('number').value.trim().toUpperCase(), date: $('date1').value, dest: $('dest').value, ...extra };
+  if (mode === 'flight') Object.assign(params, { depTime: $('depTime').value, arrTime: $('arrTime').value });
   if (!params.number) return alert('Saisissez un numero.');
   last = extra;
   $('result').classList.remove('hidden');

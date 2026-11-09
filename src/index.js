@@ -65,9 +65,18 @@ async function check(env, p) {
   if (mode === 'flight') {
     const list = await flights.findFlightByNumber(env, number, date);
     if (!list.length) return { found: false, message: 'Vol introuvable a cette date. Verifiez le numero (ex. AF1234) et la date de depart.' };
-    const f = list[0];
+    const f = applyUserTimes(list[0], p);
     const answers = p.notice14 ? { noticeOver14Days: p.notice14 === 'yes' } : {};
     const ev = evaluateFlight(f, answers);
+    if (f.delaySource === 'user-arrival')
+      ev.caveat = `Retard calcule d'apres l'heure d'arrivee que vous avez indiquee. ${ev.caveat || ''}`.trim();
+    if (f.delaySource === 'user-departure')
+      ev.caveat = `Retard estime d'apres l'heure de decollage que vous avez indiquee (l'heure d'arrivee n'est pas connue). ${ev.caveat || ''}`.trim();
+    // Estimation proche du seuil de 3 h : on conseille de reclamer, la compagnie a les heures exactes
+    if (['departure', 'user-departure'].includes(f.delaySource) && ev.verdict === 'no' && f.delayMin >= 150) {
+      ev.verdict = 'maybe';
+      ev.reason = `Retard estime a ${fmtDelay(f.delayMin)}, proche du seuil de 3 h : faites la demande, la compagnie verifiera l'heure d'arrivee exacte.`;
+    }
     if (f.delaySource === 'opensky')
       ev.caveat = `Heure d'arrivee estimee d'apres le reseau radar OpenSky (a quelques minutes pres). ${ev.caveat || ''}`.trim();
     if (f.delaySource === 'departure')
@@ -84,6 +93,31 @@ async function check(env, p) {
     return { found: true, trip, evaluation: ev, letter: ev.verdict === 'yes' ? trainLetter(trip, ev, date) : null };
   }
   throw new Error('Mode inconnu');
+}
+
+// Heures reelles saisies par le voyageur (HH:MM, heure locale de l'aeroport).
+// L'arrivee saisie prime sur tout ; le decollage saisi sert d'estimation si l'arrivee reelle reste inconnue.
+function applyUserTimes(f, { depTime, arrTime }) {
+  const diff = (scheduledLocal, hhmm) => {
+    const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(.*)$/.exec(scheduledLocal || '');
+    if (!m || !/^\d{2}:\d{2}$/.test(hhmm || '')) return null;
+    let d = (Date.parse(`${m[1]}T${hhmm}:00${m[3]}`) - Date.parse(`${m[1]}T${m[2]}:00${m[3]}`)) / 60000;
+    if (d < -720) d += 1440; // arrivee apres minuit
+    return Math.round(d);
+  };
+  const arr = diff(f.arr.scheduledLocal, arrTime);
+  if (arr != null) {
+    f.delayMin = arr;
+    f.delaySource = 'user-arrival';
+    f.arr.actualLocal = `${arrTime} (heure indiquee)`;
+    return f;
+  }
+  const dep = diff(f.dep.scheduledLocal, depTime);
+  if (dep != null && !['aerodatabox', 'opensky'].includes(f.delaySource)) {
+    f.delayMin = dep;
+    f.delaySource = 'user-departure';
+  }
+  return f;
 }
 
 async function trainStatus(env, mode, number, date) {
