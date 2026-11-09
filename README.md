@@ -10,7 +10,9 @@ public/index.html          page web (formulaire + resultat)
 src/index.js               API (/api/check, /api/route, /api/places, /api/health) + tache planifiee
 src/rules.js               regles d'indemnisation (CE 261/2004, UE 2021/782, G30 SNCF, Eurostar)
 src/providers/flights.js   AeroDataBox (vols)
-src/providers/sncf.js      API SNCF (recherche + archive des retards)
+src/providers/sncf.js      flux temps reel SNCF open data, sans cle (archive des retards)
+src/providers/gares.js     codes UIC -> noms de gares (GTFS open data SNCF)
+scripts/test-sncf.mjs      test du flux SNCF : node scripts/test-sncf.mjs
 src/providers/trenitalia.js ViaggiaTreno (API non officielle)
 src/providers/eurostar.js  iRail (Belgique) + NS (Pays-Bas)
 schema.sql                 table d'archive des retards train
@@ -24,10 +26,10 @@ wrangler.toml              configuration Cloudflare
 | Node.js (version LTS) | https://nodejs.org/fr/download | outils de deploiement |
 | Cloudflare | https://dash.cloudflare.com/sign-up | heberger le site et l'archive |
 | AeroDataBox (RapidAPI) | https://rapidapi.com/aedbx-aedbx/api/aerodatabox | retards des vols (choisir l'offre "Basic" gratuite) |
-| API SNCF | https://numerique.sncf.com/startup/api/token-developpeur/ | trains SNCF (cle recue par mail) |
 | API NS | https://apiportal.ns.nl/ | arrivees Eurostar a Amsterdam/Rotterdam (s'abonner au produit "Ns-App") |
 
-iRail (Belgique) et ViaggiaTreno (Italie) ne demandent pas de compte.
+SNCF (flux open data transport.data.gouv.fr), iRail (Belgique) et ViaggiaTreno (Italie) ne demandent pas de compte.
+SNCF : seule la recherche par numero de train est proposee (pas par trajet).
 
 ## Installation (une seule fois)
 
@@ -38,7 +40,6 @@ npx wrangler login
 npx wrangler d1 create retards        # copier le database_id affiche dans wrangler.toml
 npm run db:init
 npx wrangler secret put RAPIDAPI_KEY
-npx wrangler secret put SNCF_KEY
 npx wrangler secret put NS_KEY
 ```
 

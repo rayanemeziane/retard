@@ -8,7 +8,7 @@ directory = "./public"
 [[d1_databases]]
 binding = "DB"
 database_name = "retards"
-database_id = "A_REMPLACER_APRES_wrangler_d1_create"
+database_id = "cee24558-4bd3-4639-b228-cfb24fadc451"
 
 # Archive des retards train toutes les 10 minutes
 [triggers]
@@ -16,7 +16,7 @@ crons = ["*/10 * * * *"]
 
 [vars]
 # "1" = donnees factices (pas besoin de cles). Passer a "0" une fois les cles ajoutees.
-MOCK = "1"
+MOCK = "0"
 # Duree de conservation de l'archive train, en jours
 ARCHIVE_DAYS = "60"
 

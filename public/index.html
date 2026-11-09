@@ -86,7 +86,7 @@ $('tabs').onclick = e => {
   $('numberLabel').textContent = LABELS[mode][0];
   $('number').placeholder = LABELS[mode][1];
   $('destWrap').classList.toggle('hidden', mode === 'flight');
-  $('routeBox').classList.toggle('hidden', mode === 'eurostar');
+  $('routeBox').classList.toggle('hidden', mode === 'eurostar' || mode === 'sncf');
   $('routeList').innerHTML = ''; $('result').classList.add('hidden');
 };
 
