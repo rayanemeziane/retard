@@ -18,7 +18,7 @@ crons = ["*/10 * * * *"]
 # "1" = donnees factices (pas besoin de cles). Passer a "0" une fois les cles ajoutees.
 MOCK = "0"
 # Duree de conservation de l'archive train, en jours
-ARCHIVE_DAYS = "60"
+ARCHIVE_DAYS = "400"
 
 # Secrets a ajouter (jamais dans ce fichier) :
 #   npx wrangler secret put RAPIDAPI_KEY   (AeroDataBox)

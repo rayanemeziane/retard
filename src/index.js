@@ -34,7 +34,7 @@ async function runArchive(env) {
   for (const [name, mod] of Object.entries({ sncf, trenitalia, eurostar })) {
     try { counts[name] = await mod.archive(env, env.DB); } catch (e) { counts[name] = 'erreur: ' + e.message; }
   }
-  const days = Number(env.ARCHIVE_DAYS || 60);
+  const days = Number(env.ARCHIVE_DAYS || 400);
   await env.DB.prepare(`DELETE FROM train_delays WHERE service_date < date('now', ?1)`).bind(`-${days} days`).run();
   console.log('archive', JSON.stringify(counts));
 }
