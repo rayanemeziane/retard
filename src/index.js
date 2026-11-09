@@ -68,6 +68,10 @@ async function check(env, p) {
     const f = list[0];
     const answers = p.notice14 ? { noticeOver14Days: p.notice14 === 'yes' } : {};
     const ev = evaluateFlight(f, answers);
+    if (f.delaySource === 'opensky')
+      ev.caveat = `Heure d'arrivee estimee d'apres le reseau radar OpenSky (a quelques minutes pres). ${ev.caveat || ''}`.trim();
+    if (f.delaySource === 'departure')
+      ev.caveat = `Retard estime d'apres l'heure de depart reelle (l'heure d'arrivee n'est pas connue) : la compagnie dispose des heures exactes. ${ev.caveat || ''}`.trim();
     return { found: true, trip: f, evaluation: ev, letter: ev.verdict === 'yes' || ev.verdict === 'maybe' ? flightLetter(f, ev) : null };
   }
 

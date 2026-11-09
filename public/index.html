@@ -162,7 +162,7 @@ function show(r, params) {
   $('caveat').textContent = ev.caveat || '';
 
   if (mode === 'flight') {
-    $('details').textContent = `${t.number} ${t.dep.iata} -> ${t.arr.iata} | prevu ${t.arr.scheduledLocal || '?'} | arrive ${t.arr.actualLocal || '?'} | ${ev.distanceKm ?? '?'} km`;
+    $('details').textContent = `${t.number} ${t.dep.iata} -> ${t.arr.iata} | prevu ${t.arr.scheduledLocal || '?'} | arrive ${t.arr.actualLocal || '?'} | ${ev.distanceKm ?? '?'} km` + (t.fallbackNote ? ` | ${t.fallbackNote}` : '');
   } else {
     $('details').textContent = `Train ${t.number}${t.station ? ' | gare retenue : ' + t.station : ''} | source : ${t.source}` +
       (t.stops?.length > 1 ? ' | ' + t.stops.map(s => `${s.station} +${s.delayMin ?? '?'} min`).join(', ') : '');
